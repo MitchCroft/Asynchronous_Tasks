@@ -1,10 +1,6 @@
 #include <iostream>
 
-#define _ASYNCHRONOUS_TASKS_
 #include "../../AsyncTasks.h"
-
-#include <vector>
-using std::vector;
 
 class BaseClass {
 protected:
