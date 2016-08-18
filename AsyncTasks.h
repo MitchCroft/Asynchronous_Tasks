@@ -385,6 +385,9 @@ namespace AsynchTasks {
 	inline void Asynch_Task_Job<T>::completeCallback() {
 		//Run the callback and pass a reference to the previous result in
 		if (mCallback) mCallback(*mResult);
+
+		//Delete the result data after finishing the callback
+		if (mResult) delete[] mResult;
 	}
 
 	/*
