@@ -146,9 +146,9 @@ namespace AsynchTasks {
 		template<class T> static bool addTask(Task<T>& pTask);
 
 		/*----------Setters----------*/
-		void setWorkerTimeout(unsigned int pTime);
-		void setWorkerSleep(unsigned int pTime);
-		void setMaxCallbacks(unsigned int pMax);
+		static void setWorkerTimeout(unsigned int pTime);
+		static void setWorkerSleep(unsigned int pTime);
+		static void setMaxCallbacks(unsigned int pMax);
 	};
 	#pragma endregion
 
@@ -184,6 +184,10 @@ namespace AsynchTasks {
 
 		//! Provide an implicit method of getting value back
 		inline operator const T&() const { return mValue; }
+
+		//! Create logical comparator operators
+		inline bool operator==(const T& pVal) { return mValue == pVal; }
+		inline bool operator!=(const T& pVal) { return mValue != pVal; }
 
 		//! Remove the copy operator
 		ReadOnlyProperty<T>& operator=(const ReadOnlyProperty<T>&) = delete;
@@ -232,6 +236,10 @@ namespace AsynchTasks {
 
 		//! Provide a implicit method of getting the value back
 		inline operator const T&() const { return mValue; }
+
+		//! Create logical comparator operators
+		inline bool operator==(const T& pVal) { return mValue == pVal; }
+		inline bool operator!=(const T& pVal) { return mValue != pVal; }
 	};
 	#pragma endregion
 
@@ -550,8 +558,13 @@ namespace AsynchTasks {
 		//Ensure that the pointer is valid
 		if (!pTask) return false;
 
-		//Ensure that the task is in the setup state
-		if (pTask->mStatus != ETaskStatus::Setup) return false;
+		//Ensure that the task is in the setup or complete state
+		switch (pTask->mStatus) {
+		case ETaskStatus::Setup:
+		case ETaskStatus::Completed:
+			break;
+		default: return false;
+		}
 
 		//Ensure that the task has at minimum a process functions set
 		if (!pTask->mProcess) return false;
@@ -578,7 +591,8 @@ namespace AsynchTasks {
 		//Unlock the task list
 		mInstance->mTaskLock.unlock();
 
-		return false;
+		//Return success
+		return true;
 	}
 
 	/*
@@ -795,6 +809,9 @@ void AsynchTasks::TaskManager::update() {
 
 				//Flag the Task as completed
 				task->mStatus = ETaskStatus::Completed;
+
+				//Allow editing of Task values
+				task->mLockValues = false;
 			}
 
 			//If an error occurs, store the error message inside of the Task
@@ -804,18 +821,27 @@ void AsynchTasks::TaskManager::update() {
 
 				//Flag the Task with an error flag
 				task->mStatus = ETaskStatus::Error;
+
+				//Allow editing of Task values
+				task->mLockValues = false;
 			} catch (const std::string& pExc) {
 				//Store the message
 				task->mErrorMsg = pExc;
 
 				//Flag the Task with an error flag
 				task->mStatus = ETaskStatus::Error;
+
+				//Allow editing of Task values
+				task->mLockValues = false;
 			} catch (...) {
 				//Store generic message
 				task->mErrorMsg = "An unknown error occurred while executing the Task. Error thrown did not provide any information as to the cause\n";
 
 				//Flag the Task with an error flag
 				task->mStatus = ETaskStatus::Error;
+
+				//Allow editing of Task values
+				task->mLockValues = false;
 			}
 
 			//Remove the task from the list
@@ -934,6 +960,9 @@ void AsynchTasks::TaskManager::Worker::doWork() {
 
 				//Flag the Task as completed
 				task->mStatus = ETaskStatus::Completed;
+
+				//Allow editing of Task values
+				task->mLockValues = false;
 			}
 
 			//Otherwise flag the Task as needing to be called in main
@@ -947,18 +976,27 @@ void AsynchTasks::TaskManager::Worker::doWork() {
 
 			//Flag the Task with an error flag
 			task->mStatus = ETaskStatus::Error;
+
+			//Allow editing of Task values
+			task->mLockValues = false;
 		} catch (const std::string& pExc) {
 			//Store the message
 			task->mErrorMsg = pExc;
 
 			//Flag the Task with an error flag
 			task->mStatus = ETaskStatus::Error;
+
+			//Allow editing of Task values
+			task->mLockValues = false;
 		} catch (...) {
 			//Store generic message
 			task->mErrorMsg = "An unknown error occurred while executing the Task. Error thrown did not provide any information as to the cause\n";
 
 			//Flag the Task with an error flag
 			task->mStatus = ETaskStatus::Error;
+
+			//Allow editing of Task values
+			task->mLockValues = false;
 		}
 
 		//Unlock the Task
