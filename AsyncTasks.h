@@ -248,7 +248,7 @@ namespace AsynchTasks {
 	 *		Name: Asynch_Task_Base
 	 *		Author: Mitchell Croft
 	 *		Created: 17/08/2016
-	 *		Modified: 18/08/2016
+	 *		Modified: 19/08/2016
 	 *		
 	 *		Purpose:
 	 *		An abstract base class to allow for the creation and
@@ -292,6 +292,7 @@ namespace AsynchTasks {
 		//! Provide main functions used to complete threaded jobs
 		virtual void completeProcess() = 0;
 		virtual void completeCallback() = 0;
+		virtual void cleanupData() = 0;
 		
 	public:
 		//! Expose the ID and status values to the user	for reading
@@ -312,7 +313,7 @@ namespace AsynchTasks {
 	 *		Name: Asynch_Task_Job (General)
 	 *		Author: Mitchell Croft
 	 *		Created: 17/08/2016
-	 *		Modified: 17/08/2016
+	 *		Modified: 19/08/2016
 	 *
 	 *		Purpose:
 	 *		Provide the Task item to allow for the completion of jobs 
@@ -338,6 +339,7 @@ namespace AsynchTasks {
 		//! Override the base class abstract functions
 		void completeProcess()	override;
 		void completeCallback()	override;
+		void cleanupData() override;
 
 	public:
 		//! Expose the destructor to allow for the shared pointers to delete used jobs
@@ -385,9 +387,21 @@ namespace AsynchTasks {
 	inline void Asynch_Task_Job<T>::completeCallback() {
 		//Run the callback and pass a reference to the previous result in
 		if (mCallback) mCallback(*mResult);
+	}
 
-		//Delete the result data after finishing the callback
+	/*
+		Asynch_Task_Job<T> : cleanupData - Cleanup memory allocated by the Task when completing the process
+		Author: Mitchell Croft
+		Created: 19/08/2016
+		Modified: 19/08/2016
+	*/
+	template<class T>
+	inline void AsynchTasks::Asynch_Task_Job<T>::cleanupData() {
+		//Check if the data has been set
 		if (mResult) delete[] mResult;
+
+		//Reset the pointer
+		mResult = nullptr;
 	}
 
 	/*
@@ -428,8 +442,9 @@ namespace AsynchTasks {
 		Asynch_Task_Job();
 
 		//! Override the base class abstract functions
-		virtual void completeProcess() override;
-		virtual void completeCallback() override;
+		void completeProcess() override;
+		void completeCallback() override;
+		void cleanupData() override;
 
 	public:
 		//! Expose the destructor to allow for the shared pointers to delete used jobs
@@ -473,6 +488,14 @@ namespace AsynchTasks {
 		//Call the callback
 		if (mCallback) mCallback();
 	}
+
+	/*
+		Asynch_Task_Job<void> : cleanupData - Empty function as void Tasks allocate no memory
+		Author: Mitchell Croft
+		Created: 19/08/2016
+		Modified: 19/08/2016
+	*/
+	inline void Asynch_Task_Job<void>::cleanupData() {}
 	#pragma endregion
 	#pragma endregion
 
@@ -847,6 +870,9 @@ void AsynchTasks::TaskManager::update() {
 				task->mLockValues = false;
 			}
 
+			//Clear Task's allocated memory
+			task->cleanupData();
+
 			//Remove the task from the list
 			mInstance->mToCallOnMain.erase(mInstance->mToCallOnMain.begin() + i);
 		}
@@ -910,7 +936,7 @@ AsynchTasks::Asynch_Task_Base::Asynch_Task_Base() :
 								   Task Manager
 	Author: Mitchell Croft
 	Created: 18/08/2016
-	Modified: 18/08/2016
+	Modified: 19/08/2016
 */
 void AsynchTasks::TaskManager::Worker::doWork() {
 	//Track the period in time where the Worker will sleep
@@ -959,13 +985,16 @@ void AsynchTasks::TaskManager::Worker::doWork() {
 			//Check if the callback doesn't need to be run on main
 			if (!task->mCallbackOnMain) {
 				//Run the callback process
-				task->completeProcess();
+				task->completeCallback();
 
 				//Flag the Task as completed
 				task->mStatus = ETaskStatus::Completed;
 
 				//Allow editing of Task values
 				task->mLockValues = false;
+
+				//Clear Tasks allocated memory
+				task->cleanupData();
 			}
 
 			//Otherwise flag the Task as needing to be called in main
