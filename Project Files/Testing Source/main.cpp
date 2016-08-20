@@ -65,7 +65,7 @@ int main() {
 			}
 
 			//Slow main down to viewable pace
-			Sleep(100);
+			Sleep(75);
 		}
 	}
 

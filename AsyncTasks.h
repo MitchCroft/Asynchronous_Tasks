@@ -15,7 +15,126 @@
 #include <vector>
 #include <string>
 
+/*
+ *		Namespace: AsynchTasks
+ *		Author: Mitchell Croft
+ *		Created: 20/08/2016
+ *		Modified: 10/08/2016
+ *		
+ *		Purpose:
+ *		Provide a method of preforming various different tasks 
+ *		and functions in a multi-threaded environment, while 
+ *		being able to provide a method for the user to organise 
+ *		and manage different tasks.
+**/
 namespace AsynchTasks {
+
+	#pragma region Property Objects
+	/*
+	 *		Namespace: Properties
+	 *		Author: Mitchell Croft
+	 *		Created: 20/08/2016
+	 *		Modified: 10/08/2016
+	 *		
+	 *		Purpose:
+	 *		Abstract the Property objects from the main focus
+	 *		of the AsynchTasks namespace. They are not directly
+	 *		related to the purpose of the AsynchTasks namespace but
+	 *		provide useful benefits in the implementation.
+	 */
+	namespace Properties {
+		/*
+		*		Name: ReadOnlyProperty
+		*		Author: Mitchell Croft
+		*		Created: 17/08/2016
+		*		Modified: 17/08/2016
+		*
+		*		Purpose:
+		*		Provide a reference back to a value that cannot be modified
+		*		while allowing regular variable use.
+		*
+		*		Requires:
+		*		Ensure that the property object is destroyed before or at the
+		*		same time as the value this property encapsulates. Property
+		*		type must implement comparative operations (== and !=)
+		**/
+		template<class T>
+		class ReadOnlyProperty {
+			//! Maintain a constant reference to the value
+			const T& mValue;
+
+		public:
+			//! Prevent default construction
+			ReadOnlyProperty<T>() = delete;
+
+			//! Prevent Copy Construction
+			ReadOnlyProperty<T>(const ReadOnlyProperty<T>&) = delete;
+
+			//! Allow for setup with T& value
+			inline ReadOnlyProperty<T>(const T& pValue) : mValue(pValue) {}
+
+			//! Provide an implicit method of getting value back
+			inline operator const T&() const { return mValue; }
+
+			//! Create logical comparator operators
+			inline bool operator==(const T& pVal) { return mValue == pVal; }
+			inline bool operator!=(const T& pVal) { return mValue != pVal; }
+
+			//! Remove the copy operator
+			ReadOnlyProperty<T>& operator=(const ReadOnlyProperty<T>&) = delete;
+		};
+
+		/*
+		*		Name: ReadWriteFlaggedProperty
+		*		Author: Mitchell Croft
+		*		Created: 17/08/2016
+		*		Modified: 17/08/2016
+		*
+		*		Purpose:
+		*		Provide a reference back to a value that can be checked and
+		*		modified until a flag is raised to prevent modification
+		*
+		*		Requires:
+		*		Ensure that the property object is destroyed before or at the
+		*		same time as the values this property encapsulates.Property
+		*		type must implement comparative operations (== and !=)
+		**/
+		template<class T>
+		class ReadWriteFlaggedProperty {
+			//! Maintain a constant reference to the value
+			T& mValue;
+
+			//! Maintain a constance reference to the modification flag
+			const bool& mFlag;
+
+		public:
+			//! Prevent default construction
+			ReadWriteFlaggedProperty<T>() = delete;
+
+			//! Prevent Copy Construction
+			ReadWriteFlaggedProperty<T>(const ReadWriteFlaggedProperty<T>&) = delete;
+
+			//! Allow for setup with a T& and bool& value
+			inline ReadWriteFlaggedProperty<T>(T& pValue, const bool& pFlag) : mValue(pValue), mFlag(pFlag) {}
+
+			//! Allow for the property to be set
+			inline ReadWriteFlaggedProperty<T>& operator=(const T& pVal) {
+				//Check if the flag has been raised
+				if (!mFlag) mValue = pVal;
+
+				//Return itself
+				return *this;
+			}
+
+			//! Provide a implicit method of getting the value back
+			inline operator const T&() const { return mValue; }
+
+			//! Create logical comparator operators
+			inline bool operator==(const T& pVal) { return mValue == pVal; }
+			inline bool operator!=(const T& pVal) { return mValue != pVal; }
+		};
+	}
+	#pragma endregion
 
 	#pragma region Forward Declare Task Classes
 	//! Forward declare the base type for Tasks to inherit from
@@ -26,16 +145,8 @@ namespace AsynchTasks {
 	#pragma endregion
 
 	#pragma region Type Defines
-	//! Define the task ID number types for both configurations
-	typedef unsigned long int		taskID_32;
-	typedef unsigned long long int  taskID_64;
-
-	//! Define the general Task ID based on the current configuration
-	#ifndef _BUILD64
-	typedef taskID_32 taskID;
-	#else
-	typedef taskID_64 taskID;
-	#endif
+	//! Define the task ID number 
+	typedef unsigned long long int taskID;
 
 	//! Create an alias for the different Task items that the user can receive
 	template<class T> using Task = std::shared_ptr<Asynch_Task_Job<T>>;
@@ -69,7 +180,7 @@ namespace AsynchTasks {
 	};
 	#pragma endregion
 
-	#pragma region TaskManager
+	#pragma region Task Manager Decleration
 	/*
 	 *		Name: TaskManager
 	 *		Author: Mitchell Croft
@@ -152,103 +263,12 @@ namespace AsynchTasks {
 	};
 	#pragma endregion
 
-	#pragma region Property Objects
-	/*
-	 *		Name: ReadOnlyProperty
-	 *		Author: Mitchell Croft
-	 *		Created: 17/08/2016
-	 *		Modified: 17/08/2016
-	 *		
-	 *		Purpose:
-	 *		Provide a reference back to a value that cannot be modified
-	 *		while allowing regular variable use.
-	 *		
-	 *		Requires:
-	 *		Ensure that the property object is destroyed before or at the
-	 *		same time as the value this property encapsulates
-	**/
-	template<class T>
-	class ReadOnlyProperty {
-		//! Maintain a constant reference to the value
-		const T& mValue;
-
-	public:
-		//! Prevent default construction
-		ReadOnlyProperty<T>() = delete;
-
-		//! Prevent Copy Construction
-		ReadOnlyProperty<T>(const ReadOnlyProperty<T>&) = delete;
-
-		//! Allow for setup with T& value
-		inline ReadOnlyProperty<T>(const T& pValue) : mValue(pValue) {}
-
-		//! Provide an implicit method of getting value back
-		inline operator const T&() const { return mValue; }
-
-		//! Create logical comparator operators
-		inline bool operator==(const T& pVal) { return mValue == pVal; }
-		inline bool operator!=(const T& pVal) { return mValue != pVal; }
-
-		//! Remove the copy operator
-		ReadOnlyProperty<T>& operator=(const ReadOnlyProperty<T>&) = delete;
-	};
-
-	/*
-	 *		Name: ReadWriteFlaggedProperty
-	 *		Author: Mitchell Croft
-	 *		Created: 17/08/2016
-	 *		Modified: 17/08/2016
-	 *		
-	 *		Purpose:
-	 *		Provide a reference back to a value that can be checked and
-	 *		modified until a flag is raised to prevent modification
-	 *		
-	 *		Requires:
-	 *		Ensure that the property object is destroyed before or at the
-	 *		same time as the values this property encapsulates
-	**/
-	template<class T>
-	class ReadWriteFlaggedProperty {
-		//! Maintain a constant reference to the value
-		T& mValue;
-
-		//! Maintain a constance reference to the modification flag
-		const bool& mFlag;
-
-	public:
-		//! Prevent default construction
-		ReadWriteFlaggedProperty<T>() = delete;
-
-		//! Prevent Copy Construction
-		ReadWriteFlaggedProperty<T>(const ReadWriteFlaggedProperty<T>&) = delete;
-
-		//! Allow for setup with a T& and bool& value
-		inline ReadWriteFlaggedProperty<T>(T& pValue, const bool& pFlag) : mValue(pValue), mFlag(pFlag) {}
-
-		//! Allow for the property to be set
-		inline ReadWriteFlaggedProperty<T>& operator=(const T& pVal) {
-			//Check if the flag has been raised
-			if (!mFlag) mValue = pVal;
-
-			//Return itself
-			return *this;
-		}
-
-		//! Provide a implicit method of getting the value back
-		inline operator const T&() const { return mValue; }
-
-		//! Create logical comparator operators
-		inline bool operator==(const T& pVal) { return mValue == pVal; }
-		inline bool operator!=(const T& pVal) { return mValue != pVal; }
-	};
-	#pragma endregion
-
 	#pragma region Task Objects
 	/*
 	 *		Name: Asynch_Task_Base
 	 *		Author: Mitchell Croft
 	 *		Created: 17/08/2016
-	 *		Modified: 19/08/2016
+	 *		Modified: 20/08/2016
 	 *		
 	 *		Purpose:
 	 *		An abstract base class to allow for the creation and
@@ -296,24 +316,24 @@ namespace AsynchTasks {
 		
 	public:
 		//! Expose the ID and status values to the user	for reading
-		ReadOnlyProperty<taskID> id;
-		ReadOnlyProperty<ETaskStatus> status;
+		Properties::ReadOnlyProperty<taskID> id;
+		Properties::ReadOnlyProperty<ETaskStatus> status;
 
 		//! Expose the priority value to the user
-		ReadWriteFlaggedProperty<ETaskPriority> priority;
+		Properties::ReadWriteFlaggedProperty<ETaskPriority> priority;
 
 		//! Expose the execute callback on main flag
-		ReadWriteFlaggedProperty<bool> callbackOnMain;
+		Properties::ReadWriteFlaggedProperty<bool> callbackOnMain;
 
 		//! Expose the error string to the user for reading
-		ReadOnlyProperty<std::string> error;
+		Properties::ReadOnlyProperty<std::string> error;
 	};
 
 	/*
 	 *		Name: Asynch_Task_Job (General)
 	 *		Author: Mitchell Croft
 	 *		Created: 17/08/2016
-	 *		Modified: 19/08/2016
+	 *		Modified: 20/08/2016
 	 *
 	 *		Purpose:
 	 *		Provide the Task item to allow for the completion of jobs 
@@ -346,8 +366,8 @@ namespace AsynchTasks {
 		~Asynch_Task_Job<T>() override;
 
 		//! Expose the functions function calls as properties
-		ReadWriteFlaggedProperty<std::function<T()>> process;
-		ReadWriteFlaggedProperty<std::function<void(T&)>> callback;
+		Properties::ReadWriteFlaggedProperty<std::function<T()>> process;
+		Properties::ReadWriteFlaggedProperty<std::function<void(T&)>> callback;
 	};
 
 	#pragma region Asynch_Task_Job Function Defines
@@ -412,7 +432,7 @@ namespace AsynchTasks {
 	*/
 	template<class T>
 	inline Asynch_Task_Job<T>::~Asynch_Task_Job() {
-		delete mResult;
+		delete[] mResult;
 	}
 	#pragma endregion
 
@@ -421,7 +441,7 @@ namespace AsynchTasks {
 	 *		Name: Asynch_Task_Job (void)
 	 *		Author: Mitchell Croft
 	 *		Created: 17/08/2016
-	 *		Modified: 17/08/2016
+	 *		Modified: 20/08/2016
 	 *
 	 *		Purpose:
 	 *		Provide the Task item to allow for the completion of jobs
@@ -451,8 +471,8 @@ namespace AsynchTasks {
 		~Asynch_Task_Job() override = default;
 
 		//! Expose the functions function calls as properties
-		ReadWriteFlaggedProperty<std::function<void()>> process;
-		ReadWriteFlaggedProperty<std::function<void()>> callback;
+		Properties::ReadWriteFlaggedProperty<std::function<void()>> process;
+		Properties::ReadWriteFlaggedProperty<std::function<void()>> callback;
 	};
 
 	/*
@@ -499,11 +519,12 @@ namespace AsynchTasks {
 	#pragma endregion
 	#pragma endregion
 
+	#pragma region Worker Definition
 	/*
 	 *		Name: Worker
 	 *		Author: Mitchell Croft
 	 *		Created: 18/08/2016
-	 *		Modified: 18/08/2016
+	 *		Modified: 20/08/2016
 	 *
 	 *		Purpose:
 	 *		Execute the Tasks provided to it by the Task Manager
@@ -517,10 +538,10 @@ namespace AsynchTasks {
 		std::thread mProcessingThread;
 
 		//! Used to indicate how many seconds of inactivity must pass before the Worker goes to sleep
-		ReadOnlyProperty<unsigned int> mInactiveTimeout;
+		Properties::ReadOnlyProperty<unsigned int> mInactiveTimeout;
 
 		//! Used to indicate how long the processing thread should sleep when inactive
-		ReadOnlyProperty<unsigned int> mSleepLength;
+		Properties::ReadOnlyProperty<unsigned int> mSleepLength;
 
 		/*----------Functions----------*/
 
@@ -539,8 +560,9 @@ namespace AsynchTasks {
 		Worker();
 		~Worker();
 	};
+	#pragma endregion
 
-	#pragma region Task Manager Header Functions
+	#pragma region Task Manager Templated Definitions
 	/*
 		TaskManager : createTask - Return a new Task object with a return type of T
 		Author: Mitchell Croft
@@ -674,7 +696,7 @@ namespace AsynchTasks {
 //! Define static singleton instance
 AsynchTasks::TaskManager* AsynchTasks::TaskManager::mInstance = nullptr;
 
-#pragma region Task Manager
+#pragma region Task Manager Function Definitions
 /*
 	TaskManager : Custom Constructor - Set default pre-creation	singleton values
 	Author: Mitchell Croft
@@ -909,7 +931,7 @@ void AsynchTasks::TaskManager::destroy() {
 }
 #pragma endregion
 
-#pragma region Task Objects
+#pragma region Task Objects Function Definition
 /*
 	Asynch_Task_Base : Constructor - Initialise the Task_Base values
 	Author: Mitchell Croft
@@ -930,7 +952,7 @@ AsynchTasks::Asynch_Task_Base::Asynch_Task_Base() :
 {}
 #pragma endregion
 
-#pragma region Worker Object
+#pragma region Worker Object Function Definitions
 /*
 	TaskManager::Worker : doWork - Complete the Task objects assigned by the 
 								   Task Manager
