@@ -18,12 +18,15 @@
     <ClCompile Include="Testing Source\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Testing Source\AsyncTasks.cpp">
+    <ClCompile Include="..\AsyncTasks.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\AsyncTasks.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Testing Source\BasicInput.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

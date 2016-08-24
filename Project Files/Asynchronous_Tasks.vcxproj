@@ -132,11 +132,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Testing Source\AsyncTasks.cpp" />
+    <ClCompile Include="..\AsyncTasks.cpp" />
     <ClCompile Include="Testing Source\main.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\AsyncTasks.h" />
+    <ClInclude Include="Testing Source\BasicInput.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,21 +1,32 @@
 #include <iostream>
 
 #include "../../AsyncTasks.h"
-
-#include <windows.h>
+#include "BasicInput.h"
 
 /*
-	main - Test the current implementation of the AsynchTasks namespace
+	normalisingVectors - Normalise a large number of randomly sized vectors to test speed
 	Author: Mitchell Croft
-	Created: 18/08/2016
-	Modified: 18/08/2016
+	Created: ##/08/2016
+	Modified: ##/08/2016
 */
-int main() {
+void normalisingVectors() {
+
+}
+
+/*
+	reusableTasks - Test reusing Task objects for similar tasks repeatedly
+	Author: Mitchell Croft
+	Created: 24/08/2016
+	Modified: 24/08/2016
+*/
+void reusableTasks() {
+	//Clear the screen
+	system("CLS");
+
 	//Create the Task Manager
 	if (AsynchTasks::TaskManager::create(1)) {
-		//Save the current state of the escape and space keys
-		bool escapeState = GetKeyState(VK_ESCAPE) < 0;
-		bool spaceKey[] = { GetKeyState(VK_SPACE) < 0, GetKeyState(VK_SPACE) < 0 };
+		//Create the basic input manager
+		BasicInput input = BasicInput(VK_ESCAPE, VK_SPACE);
 
 		//Create the base job
 		AsynchTasks::Task<unsigned int> stringTask = AsynchTasks::TaskManager::createTask<unsigned int>();
@@ -42,13 +53,15 @@ int main() {
 		};
 
 		//Display initial instructions
-		printf("Press 'SPACE' to count to UINT_MAX (Reusable Task Test)\n\n");
+		printf("Press 'SPACE' to count to UINT_MAX when Task object is available (Reusable Task Test)\n\n");
 
 		//Loop till escape is pressed
-		while (GetKeyState(VK_ESCAPE) < 0 == escapeState) {																			 
+		while (true) {
 			//Update the input
-			spaceKey[0] = spaceKey[1];
-			spaceKey[1] = GetKeyState(VK_SPACE) < 0;
+			input.update();
+
+			//Check if the loop should exit
+			if (input.keyPressed(VK_ESCAPE)) break;
 
 			//Update the Task Manager
 			AsynchTasks::TaskManager::update();
@@ -58,16 +71,19 @@ int main() {
 				printf(".");
 
 			//Determine if the user has pressed space
-			if (spaceKey[1] && !spaceKey[0]) {
+			if (input.keyPressed(VK_SPACE)) {
 				//Add the task to the Task Manager
 				if (AsynchTasks::TaskManager::addTask(stringTask))
 					printf("Starting to count now:\n");
 			}
 
 			//Slow main down to viewable pace
-			Sleep(75);
+			Sleep(100);
 		}
 	}
+
+	//Display error message
+	else printf("Failed to create the Asynchronous Task Manager\n");
 
 	//Destroy the the Task Manager
 	AsynchTasks::TaskManager::destroy();
@@ -75,5 +91,47 @@ int main() {
 	//Allow the user to see the final output
 	printf("\n\n\n\n\n");
 	system("PAUSE");
+}
+
+/*
+	main - Test the current implementation of the AsynchTasks namespace
+	Author: Mitchell Croft
+	Created: 18/08/2016
+	Modified: 18/08/2016
+*/
+int main() {
+	//Store the user input
+	char usrChoice;
+
+	//Flag if test program is running
+	bool running = true;
+
+	//Loop so the user can choose the different tests
+	do {
+		//Clear the screen
+		system("CLS");
+
+		//Display the options
+		printf("Implemented Test:\n" \
+			   "1. Normalising Vectors\n" \
+			   "2. Reusable Tasks\n\n");
+
+		//Prompt user for choice
+		printf("Enter the desired test (Invalid character to quit): ");
+
+		//Receive input selection from the user
+		std::cin >> usrChoice;
+
+		//Clear the input
+		std::cin.clear();
+		std::cin.ignore(256, '\n');
+
+		//Switch on the received character
+		switch (usrChoice) {
+		case '1': normalisingVectors(); break;
+		case '2': reusableTasks(); break;
+		default: running = false; break;
+		}
+	} while (running);
 	return EXIT_SUCCESS;
 }

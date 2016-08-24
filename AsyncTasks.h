@@ -428,11 +428,11 @@ namespace AsynchTasks {
 		Asynch_Task_Job<T> : Destructor - Delete any memory used by the Task
 		Author: Mitchell Croft
 		Created: 17/08/2016
-		Modified: 17/08/2016
+		Modified: 24/08/2016
 	*/
 	template<class T>
 	inline Asynch_Task_Job<T>::~Asynch_Task_Job() {
-		delete[] mResult;
+		delete mResult;
 	}
 	#pragma endregion
 
