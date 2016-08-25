@@ -1,7 +1,9 @@
 #include <iostream>
 
 #include "../../AsyncTasks.h"
+
 #include "BasicInput.h"
+#include "Random.h"
 
 /*
 	normalisingVectors - Normalise a large number of randomly sized vectors to test speed
@@ -10,7 +12,128 @@
 	Modified: ##/08/2016
 */
 void normalisingVectors() {
+	//Define basic Vec3 struct
+	struct Vec3 { float x, y, z; };
 
+	//Store the number of worker threads to create
+	int threadCount;
+
+	//Loop until valid input
+	do {
+		//Clear the screen
+		system("CLS");
+
+		//Display prompt to the user
+		printf("Enter the number of Worker threads to create (32 maximum): ");
+
+		//Request the number from the user
+		std::cin >> threadCount;
+
+		//Clear input stream
+		std::cin.clear();
+		std::cin.ignore(2048, '\n');
+	} while (threadCount >= 32);
+
+	//Add some space on screen
+	printf("\n\n\n");
+
+	//Create the Task Manager
+	if (AsynchTasks::TaskManager::create(threadCount)) {
+		//Create the basic input manager
+		BasicInput input = BasicInput(VK_ESCAPE, VK_SPACE);
+
+		//Display initial instructions
+		printf("Press 'SPACE' to normalise 3,000,000 Vector 3 objects (Multiple Task Test)\n\n");
+
+		//Loop until the input breaks the loop
+		while (true) {
+			//Update the input
+			input.update();
+
+			//Check if the loop should exit
+			if (input.keyPressed(VK_ESCAPE)) break;
+
+			//Update the Task Manager
+			AsynchTasks::TaskManager::update();
+
+			//Output a single '.'
+			printf(".");
+
+			//Determine if space was pressed
+			if (input.keyPressed(VK_SPACE)) {
+				//Create a new Task
+				AsynchTasks::Task<std::pair<unsigned int, float>> newTask = AsynchTasks::TaskManager::createTask<std::pair<unsigned int, float>>();
+
+				//Force callback to print on main
+				newTask->callbackOnMain = true;
+
+				//Set the functions
+				newTask->process = [&]() -> std::pair<unsigned int, float> {
+					//Define the number of vectors to create
+					const unsigned int ARRAY_SIZE = 3000000;
+
+					//Create an array of 1 mill vectors
+					Vec3* vectors = new Vec3[ARRAY_SIZE];
+
+					//Store the number of vectors that were successfully normalised
+					unsigned int totalNormal = 0;
+					float averageNonNormal = 0.f;
+					
+					//Give the vectors random values
+					for (unsigned int i = 0; i < ARRAY_SIZE; i++) {
+						//Assign random axis values
+						vectors[i].x = randomRange(-500.f, 500.f);
+						vectors[i].y = randomRange(-500.f, 500.f);
+						vectors[i].z = randomRange(-500.f, 500.f);
+
+						//Get the magnitude of the vector
+						float mag = sqrtf(SQU(vectors[i].x) + SQU(vectors[i].y) + SQU(vectors[i].z));
+
+						//Check the magnitude is valid
+						if (mag) {
+							//Divide along the axis
+							vectors[i].x /= mag;
+							vectors[i].y /= mag;
+							vectors[i].z /= mag;
+						}
+
+						//Check if the magnitude has been normalised
+						mag = sqrtf(SQU(vectors[i].x) + SQU(vectors[i].y) + SQU(vectors[i].z));
+						if (mag == 0.f || mag == 1.f)
+							totalNormal++;
+						else averageNonNormal += mag;
+					}
+
+					//Delete the vector objects
+					delete[] vectors;
+
+					//Return the final count
+					return std::pair<unsigned int, float>(totalNormal, averageNonNormal /= (float)(ARRAY_SIZE - totalNormal));
+				};
+				newTask->callback = [&](std::pair<unsigned int, float>& pVal) {
+					printf("\nNormalized %u of 3,000,000 Vector 3 objects. The average non-normalised magnitude was %f (Floating point error)\n", pVal.first, pVal.second);
+				};
+
+				//Add the task to the Task Manager
+				if (AsynchTasks::TaskManager::addTask(newTask))
+					printf("\n\nAdded new Task to the Manager. Processing...\n");
+				else printf("\n\nFailed to add the new task the Manager.\n");
+			}
+
+			//Slow main down to viewable pace
+			Sleep(100);
+		}
+	}
+
+	//Display error message
+	else printf("Failed to create the Asynchronous Task Manager\n");
+
+	//Destroy the the Task Manager
+	AsynchTasks::TaskManager::destroy();
+
+	//Allow the user to see the final output
+	printf("\n\n\n\n\n");
+	system("PAUSE");
 }
 
 /*
@@ -49,7 +172,7 @@ void reusableTasks() {
 
 		//Attach the callback function
 		stringTask->callback = [&](unsigned int& pNum) {
-			printf("\n\nCounted to: %i\n\n", pNum);
+			printf("\n\nCounted to: %u\n\n", pNum);
 		};
 
 		//Display initial instructions
@@ -124,7 +247,7 @@ int main() {
 
 		//Clear the input
 		std::cin.clear();
-		std::cin.ignore(256, '\n');
+		std::cin.ignore(2048, '\n');
 
 		//Switch on the received character
 		switch (usrChoice) {

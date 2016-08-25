@@ -29,5 +29,8 @@
     <ClInclude Include="Testing Source\BasicInput.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Testing Source\Random.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
