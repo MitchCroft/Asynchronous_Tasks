@@ -19,7 +19,7 @@
  *      Namespace: AsynchTasks
  *      Author: Mitchell Croft
  *      Created: 20/08/2016
- *      Modified: 10/08/2016
+ *      Modified: 10/01/2017
  *      
  *      Purpose:
  *      Provide a method of preforming various different tasks 
@@ -104,7 +104,7 @@ namespace AsynchTasks {
             //! Maintain a constant reference to the value
             T& mValue;
 
-            //! Maintain a constance reference to the modification flag
+            //! Maintain a constant reference to the modification flag
             const bool& mFlag;
 
         public:
@@ -165,8 +165,8 @@ namespace AsynchTasks {
         //! The Task is currently being processed
         In_Progress,
 
-        //! The Task is waiting for the "main" thread to call the callback
-        Callback_On_Main,
+        //! The Task is waiting for the "update" function to call the callback
+        Callback_On_Update,
 
         //! The Task has been completed
         Completed
@@ -185,7 +185,7 @@ namespace AsynchTasks {
      *      Name: TaskManager
      *      Author: Mitchell Croft
      *      Created: 16/08/2016
-     *      Modified: 18/08/2016
+     *      Modified: 10/01/2017
      *
      *      Purpose:
      *      Complete tasks in a multi-threaded environment, while providing
@@ -233,14 +233,14 @@ namespace AsynchTasks {
         //! Track the current ID to distribute to new Tasks
         taskID mNextID;
 
-        //! Store the maximum number of Tasks that can have their callbacks executed on main per update call
-        unsigned int mMaxCallbacksOnMain;
+        //! Store the maximum number of Tasks that can have their callbacks executed on update per call
+        unsigned int mMaxCallbacksOnUpdate;
 
         //! Keep a vector of all the Tasks to be completed
         std::vector<std::shared_ptr<Asynch_Task_Base>> mUncompletedTasks;
 
-        //! Keep a vector of all the Tasks to have their callback called on the main thread
-        std::vector<std::shared_ptr<Asynch_Task_Base>> mToCallOnMain;
+        //! Keep a vector of all the Tasks to have their callback called on an update call
+        std::vector<std::shared_ptr<Asynch_Task_Base>> mToCallOnUpdate;
 
         /*----------Functions----------*/
         //! Organise tasks in a separate thread
@@ -257,9 +257,9 @@ namespace AsynchTasks {
         template<class T> static bool addTask(Task<T>& pTask);
 
         /*----------Setters----------*/
-        static void setWorkerTimeout(unsigned int pTime);
-        static void setWorkerSleep(unsigned int pTime);
-        static void setMaxCallbacks(unsigned int pMax);
+        static inline void setWorkerTimeout(unsigned int pTime);
+        static inline void setWorkerSleep(unsigned int pTime);
+        static inline void setMaxCallbacks(unsigned int pMax);
     };
     #pragma endregion
 
@@ -268,7 +268,7 @@ namespace AsynchTasks {
      *      Name: Asynch_Task_Base
      *      Author: Mitchell Croft
      *      Created: 17/08/2016
-     *      Modified: 20/08/2016
+     *      Modified: 10/01/2017
      *      
      *      Purpose:
      *      An abstract base class to allow for the creation and
@@ -293,9 +293,8 @@ namespace AsynchTasks {
         //! Store the priority of the Task
         ETaskPriority mPriority;
 
-        //! Store a flag to indicate if the callback function should be called from the 'main' thread
-        //! (Main being the thread the Task Manager was created on)
-        bool mCallbackOnMain;
+        //! Store a flag to indicate if the callback function should be called from the TaskManager's update function call
+        bool mCallbackOnUpdate;
 
         //! Maintain a flag to indicated if values can be edited
         bool mLockValues;
@@ -322,8 +321,8 @@ namespace AsynchTasks {
         //! Expose the priority value to the user
         Properties::ReadWriteFlaggedProperty<ETaskPriority> priority;
 
-        //! Expose the execute callback on main flag
-        Properties::ReadWriteFlaggedProperty<bool> callbackOnMain;
+        //! Expose the execute callback on update flag
+        Properties::ReadWriteFlaggedProperty<bool> callbackOnUpdate;
 
         //! Expose the error string to the user for reading
         Properties::ReadOnlyProperty<std::string> error;
@@ -333,7 +332,7 @@ namespace AsynchTasks {
      *      Name: Asynch_Task_Job (General)
      *      Author: Mitchell Croft
      *      Created: 17/08/2016
-     *      Modified: 20/08/2016
+     *      Modified: 10/01/2017
      *
      *      Purpose:
      *      Provide the Task item to allow for the completion of jobs 
@@ -357,7 +356,7 @@ namespace AsynchTasks {
         Asynch_Task_Job<T>();
 
         //! Override the base class abstract functions
-        void completeProcess()  override;
+        void completeProcess() override;
         void completeCallback() override;
         void cleanupData() override;
 
@@ -413,12 +412,12 @@ namespace AsynchTasks {
         Asynch_Task_Job<T> : cleanupData - Cleanup memory allocated by the Task when completing the process
         Author: Mitchell Croft
         Created: 19/08/2016
-        Modified: 19/08/2016
+        Modified: 10/01/2017
     */
     template<class T>
     inline void AsynchTasks::Asynch_Task_Job<T>::cleanupData() {
         //Check if the data has been set
-        if (mResult) delete[] mResult;
+        if (mResult) delete mResult;
 
         //Reset the pointer
         mResult = nullptr;
@@ -431,9 +430,7 @@ namespace AsynchTasks {
         Modified: 24/08/2016
     */
     template<class T>
-    inline Asynch_Task_Job<T>::~Asynch_Task_Job() {
-        delete mResult;
-    }
+    inline Asynch_Task_Job<T>::~Asynch_Task_Job() { cleanupData(); }
     #pragma endregion
 
     #pragma region Void Task Specilisation
@@ -657,7 +654,7 @@ namespace AsynchTasks {
     }
 
     /*
-        TaskManager : setWorkerSleep - Set the time each worker is asleep for inbetween 
+        TaskManager : setWorkerSleep - Set the time each worker is asleep for in between 
                                        checking for new Tasks
         Author: Mitchell Croft
         Created: 18/08/2016
@@ -674,12 +671,12 @@ namespace AsynchTasks {
                                         occur every time TaskManager::update is called
         Author: Mitchell Croft
         Created: 18/08/2016
-        Modified: 18/08/2016
+        Modified: 10/01/2017
 
         param[in] pMax - The maximum number of callbacks that can be executed
     */
     inline void TaskManager::setMaxCallbacks(unsigned int pMax) {
-        mInstance->mMaxCallbacksOnMain = pMax;
+        mInstance->mMaxCallbacksOnUpdate = pMax;
     }
     #pragma endregion
 }
@@ -714,7 +711,7 @@ AsynchTasks::TaskManager::TaskManager(unsigned int pWorkers) :
     mWorkerSleepLength(100),
 
     /*----------Tasks----------*/
-    mMaxCallbacksOnMain(10),
+    mMaxCallbacksOnUpdate(10),
     mNextID(0)
 {}
 
@@ -722,7 +719,7 @@ AsynchTasks::TaskManager::TaskManager(unsigned int pWorkers) :
     TaskManager : organiseTasks - Manage the active tasks and close finished jobs
     Author: Mitchell Croft
     Created: 16/08/2016
-    Modified: 18/08/2016
+    Modified: 10/01/2017
 */
 void AsynchTasks::TaskManager::organiseTasks() {
     //Loop so long as the Task Manager is running
@@ -739,12 +736,12 @@ void AsynchTasks::TaskManager::organiseTasks() {
                 if (mWorkers[i].task) {
                     //Check if the task is finished
                     switch (mWorkers[i].task->mStatus) {
-                    case ETaskStatus::Callback_On_Main:
-                        //Add the Task to the on main callback vector
-                        mToCallOnMain.push_back(mWorkers[i].task);
+                    case ETaskStatus::Callback_On_Update:
+                        //Add the Task to the on update callback vector
+                        mToCallOnUpdate.push_back(mWorkers[i].task);
 
                         //Sort the vector based on priority
-                        std::sort(mToCallOnMain.begin(), mToCallOnMain.end(),
+                        std::sort(mToCallOnUpdate.begin(), mToCallOnUpdate.end(),
                             [&](const std::shared_ptr<Asynch_Task_Base>& pFirst, const std::shared_ptr<Asynch_Task_Base>& pSecond) {
                             return pFirst->mPriority < pSecond->mPriority;
                         });
@@ -791,7 +788,7 @@ bool AsynchTasks::TaskManager::create(unsigned int pWorkers) {
     assert(!mInstance);
 
     //Assert that there is at least one worker created
-    assert(pWorkers > 0);
+    assert(pWorkers);
 
     //Create the new Task Manager
     mInstance = new TaskManager(pWorkers);
@@ -825,8 +822,7 @@ bool AsynchTasks::TaskManager::create(unsigned int pWorkers) {
 }
 
 /*
-    TaskManager : update - Update the different tasks and complete callback that require
-                           the main thread
+    TaskManager : update - Update the different tasks and complete on update callbacks
     
     Requires:
     This function will call all of the Tasks that have callbacks on the main thread. For
@@ -834,21 +830,21 @@ bool AsynchTasks::TaskManager::create(unsigned int pWorkers) {
 
     Author: Mitchell Croft
     Created: 18/08/2016
-    Modified: 18/08/2016
+    Modified: 10/01/2017
 */
 void AsynchTasks::TaskManager::update() {
     //Lock the Tasks
     mInstance->mTaskLock.lock();
 
     //Check if there are any Tasks to complete
-    if (mInstance->mToCallOnMain.size()) {
+    if (mInstance->mToCallOnUpdate.size()) {
         //Loop through the Tasks that need executing
-        for (int i = (int)mInstance->mToCallOnMain.size() - 1, count = 0; 
-             i >= 0 && (unsigned int)count < mInstance->mMaxCallbacksOnMain; 
+        for (int i = (int)mInstance->mToCallOnUpdate.size() - 1, count = 0;
+             i >= 0 && (unsigned int)count < mInstance->mMaxCallbacksOnUpdate; 
              i--, count++) {
 
             //Get a reference to the task
-            std::shared_ptr<Asynch_Task_Base>& task = mInstance->mToCallOnMain[i];
+            std::shared_ptr<Asynch_Task_Base>& task = mInstance->mToCallOnUpdate[i];
 
             //Try to execute the Task 
             try {
@@ -896,7 +892,7 @@ void AsynchTasks::TaskManager::update() {
             task->cleanupData();
 
             //Remove the task from the list
-            mInstance->mToCallOnMain.erase(mInstance->mToCallOnMain.begin() + i);
+            mInstance->mToCallOnUpdate.erase(mInstance->mToCallOnUpdate.begin() + i);
         }
     }
 
@@ -942,12 +938,12 @@ AsynchTasks::Asynch_Task_Base::Asynch_Task_Base() :
     mID(0),
     mStatus(AsynchTasks::ETaskStatus::Setup),
     mPriority(AsynchTasks::Low_Priority),
-    mCallbackOnMain(false),
+    mCallbackOnUpdate(false),
     mLockValues(false),
     id(mID),
     status(mStatus),
     priority(mPriority, mLockValues),
-    callbackOnMain(mCallbackOnMain, mLockValues),
+    callbackOnUpdate(mCallbackOnUpdate, mLockValues),
     error(mErrorMsg)
 {}
 #pragma endregion
@@ -1005,7 +1001,7 @@ void AsynchTasks::TaskManager::Worker::doWork() {
             task->completeProcess();
 
             //Check if the callback doesn't need to be run on main
-            if (!task->mCallbackOnMain) {
+            if (!task->mCallbackOnUpdate) {
                 //Run the callback process
                 task->completeCallback();
 
@@ -1020,7 +1016,7 @@ void AsynchTasks::TaskManager::Worker::doWork() {
             }
 
             //Otherwise flag the Task as needing to be called in main
-            else task->mStatus = ETaskStatus::Callback_On_Main;
+            else task->mStatus = ETaskStatus::Callback_On_Update;
         } 
         
         //If an error occurs, store the error message inside of the Task
