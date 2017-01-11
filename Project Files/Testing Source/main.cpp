@@ -31,14 +31,14 @@ inline const char* statusToName(const AsynchTasks::ETaskStatus& pStatus) {
     normalisingVectors - Normalise a large number of randomly sized vectors to test speed
     Author: Mitchell Croft
     Created: 24/08/2016
-    Modified: 10/01/2017
+    Modified: 11/01/2017
 */
 void normalisingVectors() {
     //Define basic Vec3 struct
     struct Vec3 { float x, y, z; };
 
     //Store the number of worker threads to create
-    int threadCount;
+    unsigned int threadCount;
 
     //Loop until valid input
     do {
@@ -46,15 +46,8 @@ void normalisingVectors() {
         system("CLS");
 
         //Display prompt to the user
-        printf("Enter the number of Worker threads to create (32 maximum): ");
-
-        //Request the number from the user
-        std::cin >> threadCount;
-
-        //Clear input stream
-        std::cin.clear();
-        std::cin.ignore(2048, '\n');
-    } while (threadCount >= 32);
+        getInput(threadCount, "Enter the number of Worker threads to create (32 maximum): ");
+    } while (threadCount > 32);
 
     //Add some space on screen
     printf("\n\n\n");
@@ -65,7 +58,7 @@ void normalisingVectors() {
         BasicInput input = BasicInput(VK_ESCAPE, VK_SPACE);
 
         //Display initial instructions
-        printf("Press 'SPACE' to normalise 3,000,000 Vector 3 objects (Multiple Task Test)\n\n");
+        printf("Hold 'SPACE' to add a new Task to normalise 3,000,000 Vector 3 objects (Multiple Task Test)\n\n");
 
         //Loop until the input breaks the loop
         while (true) {
@@ -82,7 +75,7 @@ void normalisingVectors() {
             printf(".");
 
             //Determine if space was pressed
-            if (input.keyPressed(VK_SPACE)) {
+            if (input.keyDown(VK_SPACE)) {
                 //Create a new Task
                 AsynchTasks::Task<std::pair<unsigned int, float>> newTask = AsynchTasks::TaskManager::createTask<std::pair<unsigned int, float>>();
 
@@ -159,12 +152,12 @@ void normalisingVectors() {
 }
 
 /*
-    reusableTasks - Test reusing Task objects for similar tasks repeatedly
+    reusableTask - Test reusing Task objects for similar tasks repeatedly
     Author: Mitchell Croft
     Created: 24/08/2016
-    Modified: 10/01/2017
+    Modified: 11/01/2017
 */
-void reusableTasks() {
+void reusableTask() {
     //Clear the screen
     system("CLS");
 
@@ -242,14 +235,23 @@ void reusableTasks() {
     main - Test the current implementation of the AsynchTasks namespace
     Author: Mitchell Croft
     Created: 18/08/2016
-    Modified: 18/08/2016
+    Modified: 11/01/2017
 */
 int main() {
+    //Create a simple struct to describe possible tests
+    struct ExecutableTest { const char* label; void(*const functionPtr)(); };
+
+    //Create an array of the possible Executable Tests
+    const ExecutableTest POSSIBLE_TESTS[] = {
+        {"Normalising Vectors", normalisingVectors},
+        {"Reusable Task", reusableTask},
+    };
+
+    //Store the number of possible tests to select from
+    const unsigned int TEST_COUNT = sizeof(POSSIBLE_TESTS) / sizeof(ExecutableTest);
+
     //Store the user input
     char usrChoice;
-
-    //Flag if test program is running
-    bool running = true;
 
     //Loop so the user can choose the different tests
     do {
@@ -257,26 +259,21 @@ int main() {
         system("CLS");
 
         //Display the options
-        printf("Implemented Test:\n" \
-               "1. Normalising Vectors\n" \
-               "2. Reusable Tasks\n\n");
-
-        //Prompt user for choice
-        printf("Enter the desired test (Invalid character to quit): ");
+        printf("Implemented Tests (%u):\n", TEST_COUNT);
+        for (unsigned int i = 0; i < TEST_COUNT; i++)
+            printf("%i. %s\n", i + 1, POSSIBLE_TESTS[i].label);
 
         //Receive input selection from the user
-        std::cin >> usrChoice;
+        getInput(usrChoice, "\nEnter the desired test (Invalid character to quit): ");  
 
-        //Clear the input
-        std::cin.clear();
-        std::cin.ignore(2048, '\n');
+        //Adjust for character/digit offset
+        usrChoice -= '1';
 
-        //Switch on the received character
-        switch (usrChoice) {
-        case '1': normalisingVectors(); break;
-        case '2': reusableTasks(); break;
-        default: running = false; break;
-        }
-    } while (running);
+        //Check the selection is within range
+        if (usrChoice >= 0 && usrChoice < TEST_COUNT) POSSIBLE_TESTS[usrChoice].functionPtr();
+
+        //Otherwise exit the program
+        else break;
+    } while (true);
     return EXIT_SUCCESS;
 }

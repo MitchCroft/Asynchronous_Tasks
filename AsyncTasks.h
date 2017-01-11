@@ -19,7 +19,7 @@
  *      Namespace: AsynchTasks
  *      Author: Mitchell Croft
  *      Created: 20/08/2016
- *      Modified: 10/01/2017
+ *      Modified: 11/01/2017
  *      
  *      Purpose:
  *      Provide a method of preforming various different tasks 
@@ -185,7 +185,7 @@ namespace AsynchTasks {
      *      Name: TaskManager
      *      Author: Mitchell Croft
      *      Created: 16/08/2016
-     *      Modified: 10/01/2017
+     *      Modified: 11/01/2017
      *
      *      Purpose:
      *      Complete tasks in a multi-threaded environment, while providing
@@ -215,7 +215,7 @@ namespace AsynchTasks {
         const unsigned int mWorkerCount;
 
         //! Store the values dictating the Worker threads sleeping behavior
-        unsigned int mWorkerInactiveTimeout;    //Seconds
+        unsigned int mWorkerInactiveTimeout;    //Milliseconds
         unsigned int mWorkerSleepLength;        //Milliseconds
 
         //! Maintain a pointer to the Workers
@@ -332,7 +332,7 @@ namespace AsynchTasks {
      *      Name: Asynch_Task_Job (General)
      *      Author: Mitchell Croft
      *      Created: 17/08/2016
-     *      Modified: 10/01/2017
+     *      Modified: 11/01/2017
      *
      *      Purpose:
      *      Provide the Task item to allow for the completion of jobs 
@@ -645,9 +645,9 @@ namespace AsynchTasks {
                                          going to sleep
         Author: Mitchell Croft
         Created: 18/08/2016
-        Modified: 18/08/2016
+        Modified: 11/01/2017
 
-        param[in] pTime - The amount of time (in seconds) to wait
+        param[in] pTime - The amount of time (in milliseconds) to wait
     */
     inline void TaskManager::setWorkerTimeout(unsigned int pTime) {
         mInstance->mWorkerInactiveTimeout = pTime;
@@ -707,7 +707,7 @@ AsynchTasks::TaskManager::TaskManager(unsigned int pWorkers) :
     /*----------Workers----------*/
     mWorkerCount(pWorkers),
     mWorkers(nullptr),
-    mWorkerInactiveTimeout(2),
+    mWorkerInactiveTimeout(2000),
     mWorkerSleepLength(100),
 
     /*----------Tasks----------*/
@@ -958,7 +958,7 @@ AsynchTasks::Asynch_Task_Base::Asynch_Task_Base() :
 */
 void AsynchTasks::TaskManager::Worker::doWork() {
     //Track the period in time where the Worker will sleep
-    unsigned int workerSleepPoint = unsigned int(time(NULL) + mInactiveTimeout);
+    auto workerSleepPoint = std::chrono::system_clock::now() + std::chrono::milliseconds(mInactiveTimeout);
 
     //Loop while the thread is running
     while (mRunning.test_and_set()) {
@@ -967,8 +967,14 @@ void AsynchTasks::TaskManager::Worker::doWork() {
 
         //Check if there is a job to do
         if (!task || (task && task->mStatus != ETaskStatus::Pending)) {
+            //Get the current time 
+            auto currentTime = std::chrono::system_clock::now();
+
+            //Calculate the difference between the time points
+            auto difference = std::chrono::duration_cast<std::chrono::milliseconds>(workerSleepPoint - currentTime);
+
             //Check to see if the Worker is still awake
-            if (time(NULL) < workerSleepPoint) {
+            if (difference.count() > 0) {
                 //Unlock the Task
                 taskLock.unlock();
 
@@ -990,7 +996,7 @@ void AsynchTasks::TaskManager::Worker::doWork() {
         }
 
         //Set the new sleep time
-        workerSleepPoint = unsigned int(time(NULL) + mInactiveTimeout);
+        workerSleepPoint = std::chrono::system_clock::now() + std::chrono::milliseconds(mInactiveTimeout);
 
         //Try to execute the Task 
         try {
