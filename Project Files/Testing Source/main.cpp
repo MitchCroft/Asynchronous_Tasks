@@ -1,5 +1,3 @@
-#include <iostream>
-
 #include "../../AsyncTasks.h"
 
 #include "BasicInput.h"
@@ -31,7 +29,7 @@ inline const char* statusToName(const AsynchTasks::ETaskStatus& pStatus) {
     normalisingVectors - Normalise a large number of randomly sized vectors to test speed
     Author: Mitchell Croft
     Created: 24/08/2016
-    Modified: 11/01/2017
+    Modified: 12/01/2017
 */
 void normalisingVectors() {
     //Define basic Vec3 struct
@@ -61,12 +59,9 @@ void normalisingVectors() {
         printf("Hold 'SPACE' to add a new Task to normalise 3,000,000 Vector 3 objects (Multiple Task Test)\n\n");
 
         //Loop until the input breaks the loop
-        while (true) {
+        while (!input.keyPressed(VK_ESCAPE)) {
             //Update the input
             input.update();
-
-            //Check if the loop should exit
-            if (input.keyPressed(VK_ESCAPE)) break;
 
             //Update the Task Manager
             AsynchTasks::TaskManager::update();
@@ -126,7 +121,7 @@ void normalisingVectors() {
                     return std::pair<unsigned int, float>(totalNormal, averageNonNormal /= (float)(ARRAY_SIZE - totalNormal));
                 };
                 newTask->callback = [&](std::pair<unsigned int, float>& pVal) {
-                    printf("\nNormalized %u of 3,000,000 Vector 3 objects. The average non-normalised magnitude was %f (Floating point error)\n", pVal.first, pVal.second);
+                    printf("\nNormalized %u of 3,000,000 Vector 3 objects. The average non-normalised magnitude was %f\n", pVal.first, pVal.second);
                 };
 
                 //Add the task to the Task Manager
@@ -145,17 +140,13 @@ void normalisingVectors() {
 
     //Destroy the the Task Manager
     AsynchTasks::TaskManager::destroy();
-
-    //Allow the user to see the final output
-    printf("\n\n\n\n\n");
-    system("PAUSE");
 }
 
 /*
     reusableTask - Test reusing Task objects for similar tasks repeatedly
     Author: Mitchell Croft
     Created: 24/08/2016
-    Modified: 11/01/2017
+    Modified: 12/01/2017
 */
 void reusableTask() {
     //Clear the screen
@@ -194,12 +185,9 @@ void reusableTask() {
         printf("Press 'SPACE' to count to UINT_MAX when Task object is available (Reusable Task Test)\n\n");
 
         //Loop till escape is pressed
-        while (true) {
+        while (!input.keyPressed(VK_ESCAPE)) {
             //Update the input
             input.update();
-
-            //Check if the loop should exit
-            if (input.keyPressed(VK_ESCAPE)) break;
 
             //Update the Task Manager
             AsynchTasks::TaskManager::update();
@@ -225,17 +213,114 @@ void reusableTask() {
 
     //Destroy the the Task Manager
     AsynchTasks::TaskManager::destroy();
+}
 
-    //Allow the user to see the final output
-    printf("\n\n\n\n\n");
-    system("PAUSE");
+/*
+    errorReporting - Test task error reporting to the user upon exception thrown
+    Author: Mitchell Croft
+    Created: 12/01/2017
+    Modified: 12/01/2017
+*/
+void errorReporting() {
+    //Create the Task Manager
+    if (AsynchTasks::TaskManager::create(1)) {
+        //Store a user string
+        char usrError[256];
+
+        //Get a custom error message from the user
+        do {
+            //Clear the screen
+            system("CLS");
+
+            //Get the message from the user
+            getInput(usrError, "Enter an error message to be reported on error thrown (Max 256 characters): ");
+        } while (!strlen(usrError));
+
+        //Add some space on screen
+        printf("\n\n\n");
+
+        //Create the basic input manager
+        BasicInput input = BasicInput(VK_ESCAPE, VK_SPACE);
+
+        //Store a flag for describing the position the error should be called
+        bool errorFlag = false;
+
+        //Setup the basic task to throw the error after a period of time
+        AsynchTasks::Task<void> errorTask = AsynchTasks::TaskManager::createTask<void>();
+
+        //Setup the error task with its values
+        errorTask->callbackOnUpdate = false;
+        errorTask->process = [&]() {
+            //Sleep the thread for a period of time
+            std::this_thread::sleep_for(std::chrono::milliseconds(randomRange(2000U, 5000U)));
+
+            //Test to see if the error should be thrown here
+            if (!errorFlag) {
+                //Toggle the flag
+                errorFlag = true;
+
+                //Throw the users error
+                throw std::runtime_error(std::string("Task Process function threw the error: ") + usrError);
+            }
+        };
+        errorTask->callback = [&]() {
+            //Toggle the flag
+            errorFlag = false;
+
+            //Throw the users error
+            throw std::runtime_error(std::string("Task Callback function threw the error: ") + usrError);
+        };
+
+        //Store the previous status of the Task
+        AsynchTasks::ETaskStatus prevStatus = AsynchTasks::ETaskStatus::Error;
+
+        //Output the starting message
+        printf("Press 'SPACE' to start the Task. Task progress and error output will be displayed\n\n");
+
+        //Loop till escape is pressed
+        while (!input.keyPressed(VK_ESCAPE)) {
+            //Update the Input
+            input.update();
+
+            //Update the Task Manager
+            AsynchTasks::TaskManager::update();
+
+            //Check the Task status
+            if (errorTask->status != prevStatus) {
+                //Set the new status value
+                prevStatus = errorTask->status;
+
+                //Output the new status of the Task
+                printf("Task Status: %s (%i)\n", statusToName(prevStatus), prevStatus);
+
+                //If the task has failed
+                if (prevStatus == AsynchTasks::ETaskStatus::Error) {
+                    //Output the error message
+                    printf("%s\n\n\n", errorTask->error.value().c_str());
+
+                    //Force the task to reset itself
+                    errorTask->callbackOnUpdate = (bool)errorTask->callbackOnUpdate;
+                }
+            }
+
+            //Check to see if the user wants to add the Task to the manager
+            if (input.keyPressed(VK_SPACE) && (errorTask->status == AsynchTasks::ETaskStatus::Setup || errorTask->status == AsynchTasks::ETaskStatus::Error))
+                AsynchTasks::TaskManager::addTask(errorTask);
+        }
+    }
+
+    //Display error message
+    else printf("Failed to create the Asynchronous Task Manager\n");
+
+    //Destroy the the Task Manager
+    AsynchTasks::TaskManager::destroy();
 }
 
 /*
     main - Test the current implementation of the AsynchTasks namespace
     Author: Mitchell Croft
     Created: 18/08/2016
-    Modified: 11/01/2017
+    Modified: 12/01/2017
 */
 int main() {
     //Create a simple struct to describe possible tests
@@ -245,6 +330,7 @@ int main() {
     const ExecutableTest POSSIBLE_TESTS[] = {
         {"Normalising Vectors", normalisingVectors},
         {"Reusable Task", reusableTask},
+        {"Error Reporting", errorReporting}
     };
 
     //Store the number of possible tests to select from
@@ -270,7 +356,14 @@ int main() {
         usrChoice -= '1';
 
         //Check the selection is within range
-        if (usrChoice >= 0 && usrChoice < TEST_COUNT) POSSIBLE_TESTS[usrChoice].functionPtr();
+        if (usrChoice >= 0 && usrChoice < TEST_COUNT) {
+            //Call the function
+            POSSIBLE_TESTS[usrChoice].functionPtr();
+
+            //Allow the user to see the final output
+            printf("\n\n\n\n\n");
+            system("PAUSE");
+        }
 
         //Otherwise exit the program
         else break;

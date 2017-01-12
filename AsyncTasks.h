@@ -47,7 +47,7 @@ namespace AsynchTasks {
         *       Name: ReadOnlyProperty
         *       Author: Mitchell Croft
         *       Created: 17/08/2016
-        *       Modified: 17/08/2016
+        *       Modified: 12/01/2017
         *
         *       Purpose:
         *       Provide a reference back to a value that cannot be modified
@@ -73,6 +73,9 @@ namespace AsynchTasks {
             //! Allow for setup with T& value
             inline ReadOnlyProperty<T>(const T& pValue) : mValue(pValue) {}
 
+            //! Provide an explicit method for retrieving the value
+            inline const T& value() const { return mValue; }
+
             //! Provide an implicit method of getting value back
             inline operator const T&() const { return mValue; }
 
@@ -88,11 +91,12 @@ namespace AsynchTasks {
         *       Name: ReadWriteFlaggedProperty
         *       Author: Mitchell Croft
         *       Created: 17/08/2016
-        *       Modified: 17/08/2016
+        *       Modified: 12/01/2017
         *
         *       Purpose:
         *       Provide a reference back to a value that can be checked and
-        *       modified until a flag is raised to prevent modification
+        *       modified until a flag is raised to prevent modification. Offers
+        *       callback support for validating data
         *
         *       Requires:
         *       Ensure that the property object is destroyed before or at the
@@ -107,6 +111,9 @@ namespace AsynchTasks {
             //! Maintain a constant reference to the modification flag
             const bool& mFlag;
 
+            //! Store an optional callback function to validate data
+            const std::function<void()> mCallback;
+
         public:
             //! Prevent default construction
             ReadWriteFlaggedProperty<T>() = delete;
@@ -115,12 +122,21 @@ namespace AsynchTasks {
             ReadWriteFlaggedProperty<T>(const ReadWriteFlaggedProperty<T>&) = delete;
 
             //! Allow for setup with a T& and bool& value
-            inline ReadWriteFlaggedProperty<T>(T& pValue, const bool& pFlag) : mValue(pValue), mFlag(pFlag) {}
+            inline ReadWriteFlaggedProperty<T>(T& pValue, const bool& pFlag, const std::function<void()>& pCB = nullptr) : mValue(pValue), mFlag(pFlag), mCallback(pCB) {}
+
+            //! Provide an explicit method for retrieving the value
+            inline const T& value() const { return mValue; }
 
             //! Allow for the property to be set
             inline ReadWriteFlaggedProperty<T>& operator=(const T& pVal) {
                 //Check if the flag has been raised
-                if (!mFlag) mValue = pVal;
+                if (!mFlag) {
+                    //Set the new value
+                    mValue = pVal;
+
+                    //Check if a callback has been set
+                    if (mCallback) mCallback();
+                }
 
                 //Return itself
                 return *this;
@@ -480,8 +496,8 @@ namespace AsynchTasks {
     */
     inline Asynch_Task_Job<void>::Asynch_Task_Job() :
         Asynch_Task_Base::Asynch_Task_Base(),
-        process(mProcess, Asynch_Task_Base::mLockValues),
-        callback(mCallback, Asynch_Task_Base::mLockValues)
+        process(mProcess, Asynch_Task_Base::mLockValues, [this]() { mStatus = ETaskStatus::Setup; mErrorMsg = ""; }),
+        callback(mCallback, Asynch_Task_Base::mLockValues, [this]() { mStatus = ETaskStatus::Setup; mErrorMsg = ""; })
     {}
 
     /*
@@ -606,8 +622,7 @@ namespace AsynchTasks {
         //Ensure that the task is in the setup or complete state
         switch (pTask->mStatus) {
         case ETaskStatus::Setup:
-        case ETaskStatus::Completed:
-            break;
+        case ETaskStatus::Completed: break;
         default: return false;
         }
 
@@ -942,8 +957,8 @@ AsynchTasks::Asynch_Task_Base::Asynch_Task_Base() :
     mLockValues(false),
     id(mID),
     status(mStatus),
-    priority(mPriority, mLockValues),
-    callbackOnUpdate(mCallbackOnUpdate, mLockValues),
+    priority(mPriority, mLockValues, [this]() { mStatus = ETaskStatus::Setup; mErrorMsg = ""; }),
+    callbackOnUpdate(mCallbackOnUpdate, mLockValues, [this]() { mStatus = ETaskStatus::Setup; mErrorMsg = ""; }),
     error(mErrorMsg)
 {}
 #pragma endregion
